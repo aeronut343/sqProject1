@@ -1,9 +1,19 @@
+const axios = require('axios');
 const crypto = require('crypto')
 const express = require('express');
+const { twitchTokenRefresh } = require('./twitchTokenRefresh');
 const app = express();
 const port = 3000;
 require('dotenv').config()
-    
+
+// Define my twitch user id and callback url
+const myId = '121300432'
+const myUrl = 'https://south-first-garden.glitch.me/eventsub'
+
+// Get stored environment variables
+const twitchToken = process.env.TWITCHTOKEN
+const twitchClientId = process.env.CLIENTID
+
 // Notification request headers
 const TWITCH_MESSAGE_ID = 'Twitch-Eventsub-Message-Id'.toLowerCase();
 const TWITCH_MESSAGE_TIMESTAMP = 'Twitch-Eventsub-Message-Timestamp'.toLowerCase();
@@ -18,12 +28,14 @@ const MESSAGE_TYPE_REVOCATION = 'revocation';
 // Prepend this string to the HMAC that's created from the message
 const HMAC_PREFIX = 'sha256=';
 
+// Request urls
+const twitchSubUrl = "https://api.twitch.tv/helix/eventsub/subcriptions";
+
 app.use(express.raw({          // Need raw message body for signature verification
     type: 'application/json'
-}))  
+}))
 
-
-app.post('/eventsub', (req, res) => {
+app.post('/eventsub', async (req, res) => {
     let secret = getSecret();
     let message = getHmacMessage(req);
     let hmac = HMAC_PREFIX + getHmac(secret, message);  // Signature to compare
@@ -31,16 +43,65 @@ app.post('/eventsub', (req, res) => {
     if (true === verifyMessage(hmac, req.headers[TWITCH_MESSAGE_SIGNATURE])) {
         console.log("signatures match");
 
+        // If an event sub challenge, respond with challenge
+        if (req.body.challenge) {
+            console.log(req.body)
+            res.send(req.body.challenge)
+            return
+        }
+
+        // TODO: Auto-refresh twitch key to avoid an expired token
+        twitchTokenRefresh()
+
+        // TODO: turn this into a function
+        // Check subscription status to yourself
+        let subStatus = false
+        subStatus = await axios
+            .get(twitchSubUrl, {
+                headers: {
+                    "Authorization": twitchToken,
+                    "Client-Id": twitchClientId
+                }
+            })
+            .then(res => {
+                data = res.data
+                data.foreach(sub => {
+                    if (sub.condition.broadcaster_user_id == myId) return true
+                })
+            })
+
+        // If not subscribed to yourself, subscribe
+        if (subStatus == false) {
+            await axios
+                .post(twitchSubUrl, {
+                    headers: {
+                        "Authorization": twitchToken,
+                        "Client-Id": twitchClientId
+                    },
+                    data: {
+                        "type": "stream.online",
+                        "version": "1",
+                        "condition": { "broadcaster_user_id": myId },
+                        "transport": {
+                            "method": "webhook",
+                            "callback": myUrl,
+                            "secret": process.env.SECRET
+                        }
+                    }
+                })
+        }
         // Get JSON object from body, so you can process the message.
         let notification = JSON.parse(req.body);
-        
+
         if (MESSAGE_TYPE_NOTIFICATION === req.headers[MESSAGE_TYPE]) {
-            // TODO: Post to Twitter
-            
             // Log the event type and request body
             console.log(`Event type: ${notification.subscription.type}`);
             console.log(JSON.stringify(notification.event, null, 4));
+
+            // TODO: Post to Twitter
+
             
+            // send the ok (no data)
             res.sendStatus(204);
         }
         else if (MESSAGE_TYPE_VERIFICATION === req.headers[MESSAGE_TYPE]) {
@@ -63,9 +124,9 @@ app.post('/eventsub', (req, res) => {
         res.sendStatus(403);
     }
 })
-  
+
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
+    console.log(`Example app listening at http://localhost:${port}`);
 })
 
 
@@ -77,16 +138,16 @@ function getSecret() {
 
 // Build the message used to get the HMAC.
 function getHmacMessage(request) {
-    return (request.headers[TWITCH_MESSAGE_ID] + 
-        request.headers[TWITCH_MESSAGE_TIMESTAMP] + 
+    return (request.headers[TWITCH_MESSAGE_ID] +
+        request.headers[TWITCH_MESSAGE_TIMESTAMP] +
         request.body);
 }
 
 // Get the HMAC.
 function getHmac(secret, message) {
     return crypto.createHmac('sha256', secret)
-    .update(message)
-    .digest('hex');
+        .update(message)
+        .digest('hex');
 }
 
 // Verify whether our hash matches the hash that Twitch passed in the header.
