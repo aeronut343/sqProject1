@@ -70,6 +70,7 @@ app.post('/eventsub', async (req, res) => {
                     if (sub.condition.broadcaster_user_id == myId) return true
                 })
             })
+            .catch(err => console.log('check sub status error: ' + err))
 
         // If not subscribed to yourself, subscribe
         if (subStatus == false) {
@@ -90,6 +91,7 @@ app.post('/eventsub', async (req, res) => {
                         }
                     }
                 })
+                .catch(err => console.log('resubscribe error: ' + err))
         }
         // Get JSON object from body, so you can process the message.
         let notification = JSON.parse(req.body);
@@ -102,7 +104,7 @@ app.post('/eventsub', async (req, res) => {
             // TODO: Post to Twitter
             const msg = "shall I tweet?"
             postTweet(msg)
-            
+
             // send the ok (no data)
             res.sendStatus(204);
         }

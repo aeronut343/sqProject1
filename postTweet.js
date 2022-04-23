@@ -39,7 +39,7 @@ async function postTweet(msg) {
             const tweet = res.data.data
             console.log('Tweeted: ' + tweet.text + '\nid: ' + tweet.id)
         })
-        .catch(err => console.log('convert error: ' + err))
+        .catch(err => console.log('post tweet error: ' + err))
 }
 
 module.exports = { postTweet }
