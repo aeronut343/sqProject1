@@ -1,6 +1,7 @@
 const axios = require('axios');
 const crypto = require('crypto')
 const express = require('express');
+const { postTweet } = require('./postTweet');
 const { twitchTokenRefresh } = require('./twitchTokenRefresh');
 const app = express();
 const port = 3000;
@@ -12,7 +13,7 @@ const myUrl = 'https://south-first-garden.glitch.me/eventsub'
 
 // Get stored environment variables
 const twitchToken = process.env.TWITCHTOKEN
-const twitchClientId = process.env.CLIENTID
+const twitchClientId = process.env.TWITCHCLIENTID
 
 // Notification request headers
 const TWITCH_MESSAGE_ID = 'Twitch-Eventsub-Message-Id'.toLowerCase();
@@ -43,7 +44,7 @@ app.post('/eventsub', async (req, res) => {
     if (true === verifyMessage(hmac, req.headers[TWITCH_MESSAGE_SIGNATURE])) {
         console.log("signatures match");
 
-        // If an event sub challenge, respond with challenge
+        // If an event sub challenge and not a 'notification', respond with challenge
         if (req.body.challenge) {
             console.log(req.body)
             res.send(req.body.challenge)
@@ -99,7 +100,8 @@ app.post('/eventsub', async (req, res) => {
             console.log(JSON.stringify(notification.event, null, 4));
 
             // TODO: Post to Twitter
-
+            const msg = "shall I tweet?"
+            postTweet(msg)
             
             // send the ok (no data)
             res.sendStatus(204);

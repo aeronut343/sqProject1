@@ -5,8 +5,8 @@ require('dotenv').config()
 const axios = require('axios')
 const fs = require('fs')
 async function twitchTokenRefresh() {
-    CLIENT_ID = process.env.CLIENTID
-    CLIENT_SECRET = process.env.CLIENTSECRET
+    CLIENT_ID = process.env.TWITCHCLIENTID
+    CLIENT_SECRET = process.env.TWITCHCLIENTSECRET
     url = " https://id.twitch.tv/oauth2/token?client_id=" + CLIENT_ID + "&client_secret=" + CLIENT_SECRET + "&grant_type=client_credentials"
     await axios
         .post(url)

@@ -15,6 +15,7 @@
     "fastify-static": "^4.5.0",
     "fs": "0.0.1-security",
     "handlebars": "^4.7.7",
+    "oauth-1.0a": "^2.2.6",
     "point-of-view": "^5.1.0"
   },
   "engines": {
